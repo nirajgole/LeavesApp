@@ -1,0 +1,17 @@
+# Web Framework
+fastapi
+uvicorn[standard]
+
+# Database
+sqlalchemy
+pyodbc
+pydantic-settings
+
+# Security & Auth
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==4.3.0
+python-multipart
+
+# Migrations
+alembic
