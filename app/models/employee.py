@@ -1,12 +1,19 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, JSON
+from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from sqlalchemy.orm import relationship
 from app.db.base import Base
+import uuid
 
 class Employee(Base):
     __tablename__ = "employees"
 
-    employeeId = Column(Integer, primary_key=True, index=True)
-    employeeCode = Column(String(50), unique=True, index=True)
+    employeeId = Column(
+        UNIQUEIDENTIFIER,
+        primary_key=True,
+        default=uuid.uuid4(),  # Generates a new one automatically on creation
+        index=True
+    )
+    # employeeCode = Column(String(50), unique=True, index=True)
 
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
@@ -23,7 +30,7 @@ class Employee(Base):
     roles = Column(JSON, default=["Employee"])
 
     reportingOfficerId = Column(
-        Integer, ForeignKey("employees.employeeId"), nullable=True
+        UNIQUEIDENTIFIER, ForeignKey("employees.employeeId"), nullable=True
     )
 
     leaves = relationship(

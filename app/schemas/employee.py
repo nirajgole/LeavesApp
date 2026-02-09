@@ -15,7 +15,7 @@ class EmployeeBase(BaseModel):
 
 class EmployeeCreate(EmployeeBase):
     password: str
-    employeeCode: str
+    # employeeId: str
 
 class EmployeeUpdate(BaseModel):
     firstName: Optional[str] = None

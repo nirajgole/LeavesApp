@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 from app.db.session import get_db
 from app.models.employee import Employee
@@ -11,9 +11,10 @@ from app.core.config import settings
 from app.crud.crud_employee import employee_crud
 
 # Define where the token is extracted from (the Login URL)
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"/api/Account/authenticate")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1.0/Account/login")
 
 router = APIRouter()
+
 
 def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
@@ -27,18 +28,28 @@ def get_current_user(
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
-        email: str = payload.get("sub")  #
-        uid: str = payload.get("uid")  #
-        roles: list = payload.get("roles", [])  #
+        email = payload.get("email")
+        uid = payload.get("uid")
+        roles = payload.get("roles", [])
 
-        if email is None or uid is None:
+        print("gcu: payload:", payload)  # Debugging line to check the decoded token
+        print("gcu: email:", email)  # Debugging line to check the email claim
+        print("gcu: uid:", uid)  # Debugging line to check the uid claim
+
+        if (email is None) or (uid is None):
             raise credentials_exception
 
         token_data = TokenData(email=email, uid=uid, roles=roles)
-    except JWTError:
-        raise credentials_exception
+        print(
+            "gcu: token_data:", token_data
+        )  # Debugging line to check the TokenData object
+    except JWTError as exc:
+        raise credentials_exception from exc
 
-    user = db.query(Employee).filter(Employee.employeeId == int(token_data.uid)).first()
+    user = db.query(Employee).filter(Employee.employeeId == token_data.uid).first()
+    print(
+        "gcu: user from DB:", user
+    )  # Debugging line to check the user fetched from DB
     if user is None:
         raise credentials_exception
 
@@ -63,44 +74,66 @@ def get_current_admin(current_user: Employee = Depends(get_current_user)) -> Emp
     return current_user
 
 
-@router.post("/authenticate", response_model=ApiResponse)
-def login(login_data: LoginRequest, db: Session = Depends(get_db)):
-    # 1. Look up user by email
-    user = db.query(Employee).filter(Employee.email == login_data.email).first()
-    print(f"Login attempt for email: {login_data}, User found: {user }")
+@router.post("/login")
+def login(
+    # Use OAuth2PasswordRequestForm to support the Swagger "Authorize" box
+    # It will extract 'username' (email) and 'password' from the form data
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    # 1. Look up user by email (OAuth2 uses 'username' field for the email)
+    user = db.query(Employee).filter(Employee.email == form_data.username).first()
 
     # 2. Verify password
-    if not user or not verify_password(login_data.password, user.hashed_password):
+    if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
 
-    # 3. Create the token payload (claims) as per documentation
-    token_data = {
-        "email": user.email,
+    # 3. Create Token Payload
+    token_payload = {
+        "email": user.email,  # 'sub' is the standard JWT field for subject
         "uid": str(user.employeeId),
-        "roles": user.roles,  # List of roles: ["HR Admin", "Employee"]
+        "roles": user.roles,
     }
 
-    jwt_token = create_access_token(email=user.email, uid=str(user.employeeId), roles=user.roles)
+    access_token = create_access_token(**token_payload)
 
-    response_data = TokenData(
-        jwToken=jwt_token,  # Generated via Secret Key
-        email=user.email,  # From Model
-        userName=f"{user.firstName} {user.lastName}",  # Combined from Model fields
-        roles=user.roles,  # From Model (JSON field)
-        isVerified=True,
-        uid=str(user.employeeId)
-    )
+    # 4. Prepare Response
+    # To satisfy Swagger's "Authorize" button, the response MUST include
+    # 'access_token' and 'token_type' at the top level or in the 'data' if you handle it manually.
+    # response_data = TokenData(
+    #     access_token=access_token, # Swagger looks for this exact name
+    #     token_type="bearer",       # And this
+    #     email=user.email,
+    #     userName=f"{user.firstName} {user.lastName}",
+    #     roles=user.roles,
+    #     isVerified=True,
+    #     uid=str(user.employeeId)
+    # )
 
-    return ApiResponse(data=response_data.model_dump(), succeeded=True)
+    # return ApiResponse(data=response_data.model_dump(), succeeded=True)
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "succeeded": True,
+        "data": {
+            "access_token": access_token,
+            "email": user.email,
+            "userName": f"{user.firstName} {user.lastName}",
+            "roles": user.roles,
+            "uid": str(user.employeeId),
+        },
+    }
 
 
-@router.post("/super-admin/setup", response_model=ApiResponse)
+@router.post("/superAdmin/setup", response_model=ApiResponse)
 def admin_signup(payload: EmployeeCreate, db: Session = Depends(get_db)):
     # 1. Check if ANY SuperAdmin already exists
     # We can use a raw query or add a specific method to CRUD
-    existing_super = db.query(Employee).filter(Employee.roles.contains(["SuperAdmin"])).first()
+    existing_super = (
+        db.query(Employee).filter(Employee.roles.contains(["SuperAdmin"])).first()
+    )
     if existing_super:
         raise HTTPException(status_code=403, detail="Super Admin already initialized")
 

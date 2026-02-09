@@ -1,12 +1,13 @@
 from sqlalchemy import Column, Integer, String, Date, Text, ForeignKey
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from app.db.base import Base
 
 class LeaveRequest(Base):
     __tablename__ = "leaves"
 
     id = Column(Integer, primary_key=True, index=True)
-    employeeId = Column(Integer, ForeignKey("employees.employeeId"))
+    employeeId = Column(UNIQUEIDENTIFIER, ForeignKey("employees.employeeId"))
 
     leaveTypeId = Column(Integer)
     fromDate = Column(Date, nullable=False)
@@ -17,7 +18,7 @@ class LeaveRequest(Base):
     financialYearId = Column(Integer)
 
     # Secondary link to Employee table
-    approvedBy = Column(Integer, ForeignKey("employees.employeeId"), nullable=True)
+    approvedBy = Column(UNIQUEIDENTIFIER, ForeignKey("employees.employeeId"), nullable=True)
     approvalComments = Column(String(255), nullable=True)
 
     # RELATIONSHIPS

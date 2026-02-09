@@ -1,3 +1,4 @@
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.session import get_db
@@ -123,7 +124,7 @@ def get_leave_summary(
     "/LeaveDetails/GetByReportingOfficerId/{ReportingOfficerId}", response_model=dict
 )
 def get_manager_pending_leaves(
-    ReportingOfficerId: int,
+    ReportingOfficerId: UUID,
     db: Session = Depends(get_db),
     current_user: Employee = Depends(get_current_user),
 ):

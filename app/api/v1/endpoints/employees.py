@@ -18,6 +18,7 @@ def create_new_employee(
 ):
     """Admin-only: Create a new employee."""
     user = employee_crud.get_by_email(db, email=employee_in.email)
+    
     if user:
         raise HTTPException(
             status_code=400,

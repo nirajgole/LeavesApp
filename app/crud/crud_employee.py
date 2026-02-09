@@ -31,7 +31,7 @@ class CRUDEmployee:
         db_obj = Employee(
             **obj_in.model_dump(exclude={"password"}),
             hashed_password=get_password_hash(obj_in.password),
-            onBordingStatus="Pending" # Employees must change password later
+            onBoardingStatus="Pending" # Employees must change password later
         )
         db.add(db_obj)
         db.commit()

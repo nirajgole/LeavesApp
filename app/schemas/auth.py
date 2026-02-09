@@ -1,18 +1,21 @@
+from uuid import UUID
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Generic, Optional, List, TypeVar
+T = TypeVar("T")
 
 class TokenData(BaseModel):
     """
     Unified Schema for JWT payload and Response data.
     Removed 'TokenDataResponse' and merged it here.
     """
-    email: EmailStr
-    uid: Optional[str] = None
+    accessToken: Optional[str] = None
+    token_type: str = "Bearer"
+    email: str
+    uid: str
     roles: List[str] = []
     # These fields are used for the API response specifically
-    jwToken: Optional[str] = None
     userName: Optional[str] = None
-    isVerified: bool = False
+    isVerified: Optional[bool] = False
 
 class LoginRequest(BaseModel):
     """The data expected from the login form."""
@@ -20,7 +23,7 @@ class LoginRequest(BaseModel):
     password: str
 
 # --- GENERIC API WRAPPERS ---
-class ApiResponse(BaseModel):
+class ApiResponse(BaseModel, Generic[T]):
     """
     Standard API wrapper. Instead of creating 'EmployeeResponse'
     and 'TokenResponse', we use this generic format.
@@ -28,4 +31,4 @@ class ApiResponse(BaseModel):
     succeeded: bool
     message: Optional[str] = None
     errors: Optional[List[str]] = None
-    data: Optional[dict] = None # Can hold TokenData, EmployeeBase, etc.
+    data: Optional[T] = None # Can hold TokenData, EmployeeBase, etc.
