@@ -8,3 +8,4 @@ venv/
 .vscode/
 *.db
 create_folder.script.py
+tests/
